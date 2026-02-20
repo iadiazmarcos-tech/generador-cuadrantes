@@ -5,6 +5,19 @@ from ortools.sat.python import cp_model
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Generador de Días | Torneo", layout="wide")
 
+# --- INYECCIÓN DE FUENTE PERSONALIZADA ---
+st.markdown("""
+    <style>
+        /* 1. Importar la fuente de Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+        
+        /* 2. Forzar a toda la página a usarla */
+        html, body, [class*="css"], [class*="st-"] {
+            font-family: 'Montserrat', sans-serif !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 ESTILOS_NORMALES = {
     "Gris":     ["#9E9E9E", "black"], "Morado":   ["#7E57C2", "white"],
     "Rosa":     ["#F06292", "black"], "Rojo":     ["#E53935", "white"],
