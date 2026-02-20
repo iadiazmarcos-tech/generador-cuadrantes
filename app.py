@@ -1,18 +1,44 @@
 import streamlit as st
 import random
 from ortools.sat.python import cp_model
+import uuid
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
+# --- CONFIGURACIÓN DE LA PÁGINA Y CARGA DE SCRIPTS JS ---
 st.set_page_config(page_title="Generador de Días | Torneo", layout="wide")
 
-# --- INYECCIÓN DE FUENTE PERSONALIZADA (Opcional, usando Montserrat como ejemplo) ---
+# 1. INYECCIÓN DE CSS (FUENTES) Y JAVASCRIPT (PARA LAS FOTOS)
+# Cargamos la librería html2canvas y definimos la función que toma la foto
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
         html, body, [class*="css"], [class*="st-"] {
             font-family: 'Montserrat', sans-serif !important;
         }
+        /* Estilo para el botón de descarga de imagen personalizado */
+        .btn-download-img {
+            background-color: #FF4B4B; color: white; padding: 0.5rem 1rem; 
+            border-radius: 0.5rem; border: none; cursor: pointer; 
+            font-weight: bold; display: inline-flex; align-items: center;
+            text-decoration: none; margin-top: 10px;
+        }
+        .btn-download-img:hover { background-color: #FF3333; }
     </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        function captureAndDownload(elementId, filename) {
+            const element = document.getElementById(elementId);
+            // Escala 2 para mayor resolución (retina)
+            html2canvas(element, { scale: 2, backgroundColor: "#ffffff", logging: false }).then(canvas => {
+                // Convertir el canvas a imagen JPG (calidad 0.9)
+                const image = canvas.toDataURL("image/jpeg", 0.9);
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = filename;
+                link.click();
+            });
+        }
+    </script>
 """, unsafe_allow_html=True)
 
 ESTILOS_NORMALES = {
@@ -147,12 +173,14 @@ def generar_dia_especial_amigos():
         cuadrante_especial.append(fila)
     return cuadrante_especial
 
-def generar_html_exacto(cuadrante, derbi_fijo, titulo_dia, texto_olimpiadas):
+# --- FUNCIONES GENERADORAS DE HTML (Ahora con ID único y fondo blanco) ---
+def generar_html_exacto(cuadrante, derbi_fijo, titulo_dia, texto_olimpiadas, element_id):
     A_nombre, B_nombre = derbi_fijo
     titulo_olim = f"OLIMPIADAS {texto_olimpiadas}" if texto_olimpiadas else "OLIMPIADAS"
 
+    # Envolvemos todo en un div con ID único y fondo blanco para la foto
     html = f'''
-    <div style="font-family: 'Montserrat', 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 20px;">
+    <div id="{element_id}" style="font-family: 'Montserrat', 'Aptos', 'Calibri', sans-serif; background-color: white; padding: 20px; border-radius: 10px; display: inline-block;">
         <h2 style="color: #333; margin: 0; padding-left: 10px;">{titulo_dia}</h2>
         <h4 style="color: #666; margin: 5px 0 15px 10px; font-weight: normal;">Derbi: <b>{A_nombre} vs {B_nombre}</b></h4>
         <div style="background-color: #A6A6A6; padding: 10px; display: inline-block; font-size: 14px; border-radius: 8px;">
@@ -212,15 +240,16 @@ def generar_html_exacto(cuadrante, derbi_fijo, titulo_dia, texto_olimpiadas):
     html += '''
             </table>
         </div>
-    </div>
+        </div>
     '''
     return html
 
-def generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas):
+def generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas, element_id):
     titulo_olim = f"OLIMPIADAS {texto_olimpiadas}" if texto_olimpiadas else "OLIMPIADAS"
 
+    # Envolvemos todo en un div con ID único y fondo blanco para la foto
     html = f'''
-    <div style="font-family: 'Montserrat', 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 20px;">
+    <div id="{element_id}" style="font-family: 'Montserrat', 'Aptos', 'Calibri', sans-serif; background-color: white; padding: 20px; border-radius: 10px; display: inline-block;">
         <h2 style="color: #333; margin: 0; padding-left: 10px;">{titulo_dia}</h2>
         <h4 style="color: #666; margin: 5px 0 15px 10px; font-weight: normal;">Día Especial: <b>Cooperativas (Equipos Amigos)</b></h4>
         <div style="background-color: #A6A6A6; padding: 10px; display: inline-block; font-size: 14px; border-radius: 8px;">
@@ -254,7 +283,7 @@ def generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas):
     html += '''
             </table>
         </div>
-    </div>
+        </div>
     '''
     return html
 
@@ -297,7 +326,7 @@ else:
         with st.spinner('Calculando emparejamientos mixtos mediante IA... (puede tardar unos 15 segundos)'):
             resultados_derbis = generar_dias_equilibrados(lista_equipos, derbis_ordenados)
         
-        st.success("✅ ¡Calendario generado con éxito!")
+        st.success("✅ ¡Calendario generado con éxito! Pulsa los botones rojos para descargar la imagen de cada día.")
         iterador_derbis = iter(resultados_derbis)
         
         for i, config in enumerate(configuracion_dias):
@@ -305,38 +334,35 @@ else:
             tipo_evento = MAPA_OPCIONES[config[0]]
             texto_olimpiadas = config[1]
             titulo_dia = f"DÍA {dia_num}"
-            
+            # Generamos un ID único para este día
+            element_id = f"capture_node_{dia_num}_{uuid.uuid4().hex[:6]}"
+            filename_jpg = f"{titulo_dia}_{tipo_evento.replace(':', '').replace(' ', '_')}.jpg"
+
             if tipo_evento == "COOPERATIVAS":
                 cuadrante = generar_dia_especial_amigos()
-                html_final = generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas)
+                html_final = generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas, element_id)
                 st.markdown(html_final, unsafe_allow_html=True)
                 
-                # Botón de Descarga
-                html_descarga = f"<html><head><meta charset='utf-8'></head><body style='padding: 20px;'>{html_final}</body></html>"
-                st.download_button(
-                    label=f"💾 Descargar {titulo_dia} (HTML)",
-                    data=html_descarga,
-                    file_name=f"Cuadrante_Dia_{dia_num}_Cooperativas.html",
-                    mime="text/html",
-                    key=f"dl_amigos_{dia_num}"
-                )
+                # BOTÓN HTML QUE ACTIVA EL JS
+                st.markdown(f"""
+                    <button class="btn-download-img" onclick="captureAndDownload('{element_id}', '{filename_jpg}')">
+                        📷 Descargar Imagen (JPG)
+                    </button>
+                """, unsafe_allow_html=True)
                 st.markdown("---")
                 
             else:
                 derbi, cuadrante = next(iterador_derbis)
                 if cuadrante is not None:
-                    html_final = generar_html_exacto(cuadrante, derbi, titulo_dia, texto_olimpiadas)
+                    html_final = generar_html_exacto(cuadrante, derbi, titulo_dia, texto_olimpiadas, element_id)
                     st.markdown(html_final, unsafe_allow_html=True)
                     
-                    # Botón de Descarga
-                    html_descarga = f"<html><head><meta charset='utf-8'></head><body style='padding: 20px;'>{html_final}</body></html>"
-                    st.download_button(
-                        label=f"💾 Descargar {titulo_dia} (HTML)",
-                        data=html_descarga,
-                        file_name=f"Cuadrante_Dia_{dia_num}_{derbi[0]}_vs_{derbi[1]}.html",
-                        mime="text/html",
-                        key=f"dl_derbi_{dia_num}"
-                    )
+                    # BOTÓN HTML QUE ACTIVA EL JS
+                    st.markdown(f"""
+                        <button class="btn-download-img" onclick="captureAndDownload('{element_id}', '{filename_jpg}')">
+                            📷 Descargar Imagen (JPG)
+                        </button>
+                    """, unsafe_allow_html=True)
                     st.markdown("---")
                 else:
                     st.error(f"❌ No se pudo resolver el {config[0]}")
