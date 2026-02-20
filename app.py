@@ -5,13 +5,10 @@ from ortools.sat.python import cp_model
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Generador de Días | Torneo", layout="wide")
 
-# --- INYECCIÓN DE FUENTE PERSONALIZADA ---
+# --- INYECCIÓN DE FUENTE PERSONALIZADA (Opcional, usando Montserrat como ejemplo) ---
 st.markdown("""
     <style>
-        /* 1. Importar la fuente de Google Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
-        
-        /* 2. Forzar a toda la página a usarla */
         html, body, [class*="css"], [class*="st-"] {
             font-family: 'Montserrat', sans-serif !important;
         }
@@ -152,12 +149,10 @@ def generar_dia_especial_amigos():
 
 def generar_html_exacto(cuadrante, derbi_fijo, titulo_dia, texto_olimpiadas):
     A_nombre, B_nombre = derbi_fijo
-    
-    # Texto condicional para las olimpiadas
     titulo_olim = f"OLIMPIADAS {texto_olimpiadas}" if texto_olimpiadas else "OLIMPIADAS"
 
     html = f'''
-    <div style="font-family: 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 40px;">
+    <div style="font-family: 'Montserrat', 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 20px;">
         <h2 style="color: #333; margin: 0; padding-left: 10px;">{titulo_dia}</h2>
         <h4 style="color: #666; margin: 5px 0 15px 10px; font-weight: normal;">Derbi: <b>{A_nombre} vs {B_nombre}</b></h4>
         <div style="background-color: #A6A6A6; padding: 10px; display: inline-block; font-size: 14px; border-radius: 8px;">
@@ -225,7 +220,7 @@ def generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas):
     titulo_olim = f"OLIMPIADAS {texto_olimpiadas}" if texto_olimpiadas else "OLIMPIADAS"
 
     html = f'''
-    <div style="font-family: 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 40px;">
+    <div style="font-family: 'Montserrat', 'Aptos', 'Calibri', 'Arial', sans-serif; margin-bottom: 20px;">
         <h2 style="color: #333; margin: 0; padding-left: 10px;">{titulo_dia}</h2>
         <h4 style="color: #666; margin: 5px 0 15px 10px; font-weight: normal;">Día Especial: <b>Cooperativas (Equipos Amigos)</b></h4>
         <div style="background-color: #A6A6A6; padding: 10px; display: inline-block; font-size: 14px; border-radius: 8px;">
@@ -275,17 +270,14 @@ lista_equipos = ["Gris", "Morado", "Rosa", "Rojo", "Negro", "Verde", "Amarillo",
 st.markdown("### 📅 Configuración del Menú")
 configuracion_dias = []
 
-# Mostramos los 7 desplegables y las cajas de texto
 for i in range(1, 8):
     col1, col2 = st.columns([1, 1])
     with col1:
-        # El "index=(i-1)" asegura que por defecto cada día tenga un evento distinto cargado
         opcion = st.selectbox(f"DÍA {i}:", opciones_lista, index=(i-1), key=f"sel_{i}")
     with col2:
         texto = st.text_input(f"Olimpiadas (Día {i}):", key=f"txt_{i}", placeholder="Ej: Nocturnas")
     configuracion_dias.append((opcion, texto))
 
-# Lógica de Validación: Evitar duplicados
 eventos_seleccionados = [c[0] for c in configuracion_dias]
 hay_repetidos = len(set(eventos_seleccionados)) != 7
 
@@ -296,18 +288,15 @@ if hay_repetidos:
 else:
     if st.button("🔄 Generar Calendario Completo", type="primary"):
         
-        # 1. Separar los Derbis normales de las Cooperativas para el motor IA
         derbis_ordenados = []
         for config in configuracion_dias:
             tipo_evento = MAPA_OPCIONES[config[0]]
             if tipo_evento != "COOPERATIVAS":
                 derbis_ordenados.append(tipo_evento)
         
-        # 2. Calcular los Derbis equilibrados
         with st.spinner('Calculando emparejamientos mixtos mediante IA... (puede tardar unos 15 segundos)'):
             resultados_derbis = generar_dias_equilibrados(lista_equipos, derbis_ordenados)
         
-        # 3. Ensamblar y Mostrar en el orden exacto que eligió el usuario
         st.success("✅ ¡Calendario generado con éxito!")
         iterador_derbis = iter(resultados_derbis)
         
@@ -315,16 +304,39 @@ else:
             dia_num = i + 1
             tipo_evento = MAPA_OPCIONES[config[0]]
             texto_olimpiadas = config[1]
+            titulo_dia = f"DÍA {dia_num}"
             
             if tipo_evento == "COOPERATIVAS":
                 cuadrante = generar_dia_especial_amigos()
-                html_final = generar_html_amigos(cuadrante, f"DÍA {dia_num}", texto_olimpiadas)
+                html_final = generar_html_amigos(cuadrante, titulo_dia, texto_olimpiadas)
                 st.markdown(html_final, unsafe_allow_html=True)
+                
+                # Botón de Descarga
+                html_descarga = f"<html><head><meta charset='utf-8'></head><body style='padding: 20px;'>{html_final}</body></html>"
+                st.download_button(
+                    label=f"💾 Descargar {titulo_dia} (HTML)",
+                    data=html_descarga,
+                    file_name=f"Cuadrante_Dia_{dia_num}_Cooperativas.html",
+                    mime="text/html",
+                    key=f"dl_amigos_{dia_num}"
+                )
+                st.markdown("---")
+                
             else:
-                # Sacamos el siguiente derbi resuelto de la lista
                 derbi, cuadrante = next(iterador_derbis)
                 if cuadrante is not None:
-                    html_final = generar_html_exacto(cuadrante, derbi, f"DÍA {dia_num}", texto_olimpiadas)
+                    html_final = generar_html_exacto(cuadrante, derbi, titulo_dia, texto_olimpiadas)
                     st.markdown(html_final, unsafe_allow_html=True)
+                    
+                    # Botón de Descarga
+                    html_descarga = f"<html><head><meta charset='utf-8'></head><body style='padding: 20px;'>{html_final}</body></html>"
+                    st.download_button(
+                        label=f"💾 Descargar {titulo_dia} (HTML)",
+                        data=html_descarga,
+                        file_name=f"Cuadrante_Dia_{dia_num}_{derbi[0]}_vs_{derbi[1]}.html",
+                        mime="text/html",
+                        key=f"dl_derbi_{dia_num}"
+                    )
+                    st.markdown("---")
                 else:
                     st.error(f"❌ No se pudo resolver el {config[0]}")
